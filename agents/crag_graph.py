@@ -30,7 +30,9 @@ if os.path.exists("faiss_index"):
 else:
     all_chunks = []
     text_splitter = RecursiveCharacterTextSplitter(chunk_size=900, chunk_overlap=150)
-    for pdf_file in glob.glob("*.pdf"):
+    # Define absolute path to knowledge_base relative to this file
+    kb_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "knowledge_base")
+    for pdf_file in glob.glob(os.path.join(kb_path, "*.pdf")):
         docs = PyPDFLoader(pdf_file).load()
         chunks = text_splitter.split_documents(docs)
         for d in chunks:

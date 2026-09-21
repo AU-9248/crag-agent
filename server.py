@@ -6,7 +6,7 @@ from fastapi.responses import HTMLResponse
 from sse_starlette.sse import EventSourceResponse
 from sqlalchemy.orm import Session
 
-from graph import app as crag_app
+from agents.crag_graph import app as crag_app
 from database import get_db, Conversation, Message
 
 app = FastAPI()
