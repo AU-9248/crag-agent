@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CRAG Interface</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-main: #212121;
+      --bg-sidebar: #171717;
+      --bg-input: #2f2f2f;
+      --border-color: rgba(255, 255, 255, 0.1);
+      --text-main: #ececec;
+      --text-muted: #b4b4b4;
+      --primary: #10a37f;
+      --primary-hover: #0e906f;
+    }
+    body {
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+    }
+    .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+    .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+    .custom-scrollbar::-webkit-scrollbar-thumb { background: #424242; border-radius: 4px; }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #555; }
+    
+    @keyframes pulse-opacity {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+    .animate-thinking { animation: pulse-opacity 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body class="h-screen w-full flex overflow-hidden">
+  
+  <!-- Sidebar -->
+  <aside class="w-[260px] h-full flex flex-col transition-transform duration-300 z-20 shrink-0" style="background-color: var(--bg-sidebar);">
+    <div class="p-3">
+      <button id="new-chat-btn" class="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-sm font-medium transition-colors border hover:bg-[var(--bg-input)]" style="border-color: var(--border-color);">
+        <svg stroke="currentColor" fill="none" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round" class="h-4 w-4" height="1em" width="1em" xmlns="http://www.w3.org/2000/svg"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+        New chat
+      </button>
+    </div>
+    
+    <div class="flex-1 overflow-y-auto custom-scrollbar p-3 pt-0">
+      <div class="text-xs font-semibold mb-3 mt-2 px-3" style="color: var(--text-muted);">Previous Chats</div>
+      <div id="history-list" class="flex flex-col gap-1">
+        <!-- History items injected here -->
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 h-full relative overflow-hidden" style="background-color: var(--bg-main);">
+    
+    <!-- Empty State -->
+    <div id="empty-state" class="absolute inset-0 flex flex-col items-center justify-center p-6 w-full max-w-3xl mx-auto">
+      <h1 id="greeting-title" class="text-4xl font-bold mb-8 tracking-tight text-center" style="color: var(--text-main);">What do you want to know?</h1>
+      <div class="w-full relative">
+        <input type="text" id="initial-input" class="w-full rounded-2xl py-4 pl-6 pr-12 text-lg focus:outline-none focus:ring-1 focus:ring-[var(--border-color)] shadow-sm transition-all" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main);" placeholder="Ask anything...">
+        <button id="search-btn" class="absolute right-3 top-3 p-2 rounded-xl transition-opacity hover:opacity-80" style="background-color: var(--text-main); color: var(--bg-main);">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Active Chat State -->
+    <div id="active-state" class="hidden absolute inset-0 w-full max-w-3xl mx-auto">
+      <div class="h-full w-full overflow-y-auto custom-scrollbar px-6 pb-32 pt-8" id="chat-messages-container">
+        <!-- Messages will be appended here -->
+      </div>
+
+      <!-- Sticky Input at Bottom -->
+      <div class="absolute bottom-0 left-0 right-0 p-4 z-50 pointer-events-auto" style="background: linear-gradient(180deg, transparent, var(--bg-main) 20%);">
+        <div class="w-full relative max-w-3xl mx-auto">
+          <input type="text" id="followup-input" class="w-full rounded-2xl py-4 pl-6 pr-12 text-base focus:outline-none focus:ring-1 focus:ring-[var(--border-color)] shadow-sm transition-all" style="background-color: var(--bg-input); border: 1px solid var(--border-color); color: var(--text-main); pointer-events: auto;" placeholder="Ask a follow-up...">
+          <button id="followup-btn" class="absolute right-3 top-3 p-2 rounded-xl transition-opacity hover:opacity-80 z-50 pointer-events-auto" style="background-color: var(--text-main); color: var(--bg-main);">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script>
+    const userName = "Akshat";
+    const currentHour = new Date().getHours();
+    let timeGreeting = "Good evening";
+    if (currentHour < 12) timeGreeting = "Good morning";
+    else if (currentHour < 17) timeGreeting = "Good afternoon";
+
+    const greetings = [
+      `The mic is yours, ${userName}.`,
+      `${timeGreeting}, ${userName}. What's on the agenda?`,
+      `How can I help you today?`
+    ];
+    document.getElementById('greeting-title').innerText = greetings[Math.floor(Math.random() * greetings.length)];
+
+    let currentConversationId = null;
+    
+    // UI Elements
+    const searchBtn = document.getElementById('search-btn');
+    const input = document.getElementById('initial-input');
+    const followupBtn = document.getElementById('followup-btn');
+    const followupInput = document.getElementById('followup-input');
+    const emptyState = document.getElementById('empty-state');
+    const activeState = document.getElementById('active-state');
+    const chatContainer = document.getElementById('chat-messages-container');
+    const historyList = document.getElementById('history-list');
+    const newChatBtn = document.getElementById('new-chat-btn');
+
+    async function loadConversations() {
+        try {
+            const res = await fetch('/api/conversations');
+            const data = await res.json();
+            historyList.innerHTML = '';
+            data.forEach(chat => {
+                const wrapper = document.createElement('div');
+                wrapper.className = "flex items-center group relative rounded-lg transition-colors";
+                wrapper.style.color = "var(--text-main)";
+                wrapper.onmouseover = () => wrapper.style.backgroundColor = "var(--bg-input)";
+                wrapper.onmouseout = () => wrapper.style.backgroundColor = "transparent";
+
+                const btn = document.createElement('button');
+                btn.className = "flex-1 text-left px-3 py-2 text-sm truncate pr-8";
+                btn.innerText = chat.title;
+                btn.onclick = () => loadPastChat(chat.id);
+                wrapper.appendChild(btn);
+
+                const delBtn = document.createElement('button');
+                delBtn.className = "absolute right-2 p-1.5 rounded-md transition-colors opacity-40 hover:opacity-100";
+                delBtn.style.color = "var(--text-main)";
+                delBtn.onmouseover = () => delBtn.style.color = "#ef4444";
+                delBtn.onmouseout = () => delBtn.style.color = "var(--text-main)";
+                delBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+                delBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    if (confirm('Are you sure you want to delete this chat?')) {
+                        try {
+                            await fetch('/api/conversations/' + chat.id, { method: 'DELETE' });
+                            if (currentConversationId === chat.id) {
+                                newChatBtn.click();
+                            }
+                            loadConversations();
+                        } catch (err) {
+                            console.error(err);
+                        }
+                    }
+                };
+                wrapper.appendChild(delBtn);
+                historyList.appendChild(wrapper);
+            });
+        } catch (e) {
+            console.error(e);
+        }
+    }
+    loadConversations();
+
+    newChatBtn.addEventListener('click', () => {
+        currentConversationId = null;
+        chatContainer.innerHTML = '';
+        activeState.classList.add('hidden');
+        emptyState.classList.remove('hidden');
+        input.value = '';
+        input.focus();
+    });
+
+    async function loadPastChat(id) {
+        currentConversationId = id;
+        emptyState.classList.add('hidden');
+        activeState.classList.remove('hidden');
+        chatContainer.innerHTML = '';
+
+        try {
+            const res = await fetch(`/api/conversations/${id}`);
+            const messages = await res.json();
+            
+            messages.forEach(msg => {
+                if (msg.role === 'user') {
+                    renderUserMessage(msg.content);
+                } else {
+                    renderAssistantMessage(msg.content, msg.sources, msg.trace);
+                }
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        } catch (e) {
+            console.error(e);
+        }
+    }
+
+    function renderUserMessage(text) {
+        const div = document.createElement('div');
+        div.className = "py-6 mt-2";
+        div.innerHTML = `<h2 class="text-2xl font-semibold">${text}</h2>`;
+        chatContainer.appendChild(div);
+    }
+
+    function renderAssistantMessage(text, sources, traceHTML) {
+        const wrapper = document.createElement('div');
+        wrapper.className = "pb-8 mb-8 border-b border-[var(--border-color)]";
+
+        let sourcesHTML = '';
+        if (sources && sources.length > 0) {
+            sourcesHTML = `<div class="text-xs font-semibold uppercase mb-3" style="color: var(--text-muted);">Sources</div>
+                           <div class="flex gap-3 mb-6 overflow-x-auto pb-2 custom-scrollbar">`;
+            sources.forEach((src, idx) => {
+                const href = (src.url && src.url !== '#') ? `href="${src.url}" target="_blank"` : '';
+                sourcesHTML += `
+                    <a ${href} class="shrink-0 flex flex-col rounded-xl p-3 w-40 cursor-pointer transition-colors no-underline border hover:opacity-80" style="background-color: var(--bg-input); border-color: var(--border-color);">
+                        <div class="text-[10px] font-bold mb-1 uppercase tracking-wider" style="color: var(--text-muted);">Source ${idx + 1}</div>
+                        <div class="text-sm font-medium leading-tight line-clamp-2" style="color: var(--text-main);">${src.title}</div>
+                    </a>
+                `;
+            });
+            sourcesHTML += `</div>`;
+        }
+
+        const answerHTML = text.replace(/\n/g, '<br>');
+        
+        wrapper.innerHTML = `
+            ${sourcesHTML}
+            <div class="leading-relaxed text-base space-y-4" style="color: var(--text-main);">${answerHTML}</div>
+        `;
+        chatContainer.appendChild(wrapper);
+    }
+
+    let isGenerating = false;
+
+    function setInputState(disabled) {
+        input.disabled = disabled;
+        followupInput.disabled = disabled;
+        searchBtn.disabled = disabled;
+        followupBtn.disabled = disabled;
+        
+        const opacity = disabled ? '0.5' : '1';
+        input.style.opacity = opacity;
+        followupInput.style.opacity = opacity;
+        searchBtn.style.opacity = opacity;
+        followupBtn.style.opacity = opacity;
+        
+        if (!disabled) {
+            followupInput.focus();
+        }
+    }
+
+    function startSearch(query) {
+        if (!query || isGenerating) return;
+        isGenerating = true;
+        setInputState(true);
+
+        renderUserMessage(query);
+
+        emptyState.classList.add('hidden');
+        activeState.classList.remove('hidden');
+        input.value = '';
+        followupInput.value = '';
+        
+        // Setup temporary UI for reasoning
+        const tempWrapper = document.createElement('div');
+        tempWrapper.className = "pb-8 mb-8 border-b border-[var(--border-color)]";
+        
+        const thinkingProcess = document.createElement('div');
+        thinkingProcess.className = "flex flex-col gap-3 mb-8";
+        tempWrapper.appendChild(thinkingProcess);
+
+        const reasoningBtn = document.createElement('button');
+        reasoningBtn.className = "hidden self-start flex items-center text-xs font-medium rounded-full px-4 py-1.5 transition-colors mb-4 border hover:opacity-80";
+        reasoningBtn.style = "background-color: var(--bg-input); border-color: var(--border-color); color: var(--text-muted);";
+        reasoningBtn.innerHTML = `<svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg> View CRAG Reasoning`;
+        tempWrapper.appendChild(reasoningBtn);
+
+        const reasoningPanel = document.createElement('div');
+        reasoningPanel.className = "hidden mb-8 rounded-xl p-5 shadow-sm text-sm border";
+        reasoningPanel.style = "background-color: var(--bg-input); border-color: var(--border-color);";
+        reasoningPanel.innerHTML = `
+          <h3 class="font-semibold mb-3 flex items-center" style="color: var(--text-main);">
+             <svg class="mr-2" style="color: var(--text-muted);" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+             Execution Trace
+          </h3>
+          <ul class="space-y-2 border-l-2 pl-4 ml-2" style="border-color: var(--border-color); color: var(--text-muted);"></ul>
+        `;
+        const traceList = reasoningPanel.querySelector('ul');
+        tempWrapper.appendChild(reasoningPanel);
+
+        reasoningBtn.onclick = () => {
+            reasoningPanel.classList.toggle('hidden');
+            const isHidden = reasoningPanel.classList.contains('hidden');
+            reasoningBtn.innerHTML = isHidden 
+              ? `<svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg> View CRAG Reasoning`
+              : `<svg class="mr-2" xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg> Hide CRAG Reasoning`;
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        };
+
+        const finalResponse = document.createElement('div');
+        finalResponse.className = "hidden flex flex-col opacity-0 transition-opacity duration-500";
+        finalResponse.innerHTML = `
+          <div class="text-xs font-semibold uppercase mb-3" style="color: var(--text-muted);">Sources</div>
+          <div class="sources-container flex gap-3 mb-6 overflow-x-auto pb-2 custom-scrollbar"></div>
+          <div class="answer-text leading-relaxed text-base space-y-4" style="color: var(--text-main);"></div>
+        `;
+        tempWrapper.appendChild(finalResponse);
+        chatContainer.appendChild(tempWrapper);
+        chatContainer.scrollTop = chatContainer.scrollHeight;
+
+        function addStep(id, text, icon, animate = true) {
+            const step = document.createElement('div');
+            step.id = `step-${id}-${Date.now()}`;
+            step.className = `flex items-center text-sm font-medium ${animate ? 'animate-thinking' : ''}`;
+            step.style.color = "var(--text-muted)";
+            step.innerHTML = `<span class="mr-3 text-lg">${icon}</span> ${text}`;
+            thinkingProcess.appendChild(step);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            return step;
+        }
+
+        function updateStep(stepEl, text, icon, colorHex = "var(--text-muted)") {
+            if (stepEl) {
+                stepEl.innerHTML = `<span class="mr-3 text-lg">${icon}</span> ${text}`;
+                stepEl.classList.remove('animate-thinking');
+                stepEl.style.color = colorHex;
+            }
+        }
+        
+        function addTrace(text) {
+            const li = document.createElement('li');
+            li.innerHTML = text;
+            traceList.appendChild(li);
+        }
+
+        let url = `/chat?q=${encodeURIComponent(query)}`;
+        if (currentConversationId) {
+            url += `&conversation_id=${currentConversationId}`;
+        }
+
+        const eventSource = new EventSource(url);
+        let retrieveStep, evalStep, fallbackStep, refineStep, generateStep;
+        let sources = [];
+
+        eventSource.addEventListener("init", (e) => {
+            const data = JSON.parse(e.data);
+            currentConversationId = data.conversation_id;
+            loadConversations(); // refresh sidebar to show new chat
+        });
+
+        eventSource.addEventListener("update", (e) => {
+            const data = JSON.parse(e.data);
+            if (data.node === "retrieve") {
+                retrieveStep = addStep('retrieve', 'Searching knowledge base...', '🔍');
+                addTrace(`<span class="font-medium" style="color: var(--text-main);">Retrieve:</span> Gathered internal documents.`);
+            } 
+            else if (data.node === "eval_each_doc") {
+                updateStep(retrieveStep, 'Searched knowledge base', '✅', 'var(--primary)');
+                evalStep = addStep('eval', 'Evaluating document relevance...', '⚖️');
+                addTrace(`<span class="font-medium" style="color: var(--text-main);">Evaluate:</span> Verdict: <span class="font-mono px-1 rounded" style="background: var(--bg-input);">${data.verdict}</span>. Reason: ${data.reason}`);
+                
+                if (data.verdict === "INCORRECT" || data.verdict === "AMBIGUOUS") {
+                    updateStep(evalStep, 'Evaluated relevance (Need more info)', '⚠️', '#f59e0b');
+                    fallbackStep = addStep('fallback', 'Local data insufficient. Preparing web search...', '🌐');
+                } else {
+                    updateStep(evalStep, 'Evaluated relevance (Relevant)', '✅', 'var(--primary)');
+                }
+
+                if (data.local_sources) {
+                    data.local_sources.forEach(src => sources.push({ type: 'Internal', title: src.title, url: src.url }));
+                }
+            }
+            else if (data.node === "rewrite_query") {
+                updateStep(fallbackStep, `Rewriting query for web...`, '🌐');
+                addTrace(`<span class="font-medium" style="color: var(--text-main);">Rewrite Query:</span> "${data.web_query}"`);
+            }
+            else if (data.node === "web_search") {
+                updateStep(fallbackStep, `Searching web...`, '🌐');
+                if (data.web_sources) {
+                    data.web_sources.forEach(src => sources.push({ type: 'Web', title: src.title, url: src.url }));
+                }
+                addTrace(`<span class="font-medium" style="color: var(--text-main);">Web Search:</span> Retrieved web results.`);
+            }
+            else if (data.node === "refine") {
+                if (fallbackStep) updateStep(fallbackStep, 'Web search complete', '✅', 'var(--primary)');
+                refineStep = addStep('refine', 'Filtering irrelevant information...', '✂️');
+                addTrace(`<span class="font-medium" style="color: var(--text-main);">Refine:</span> Kept ${data.kept_strips_count}/${data.total_strips_count} sentences.`);
+            }
+            else if (data.node === "generate") {
+                if (refineStep) updateStep(refineStep, 'Information filtered', '✅', 'var(--primary)');
+                generateStep = addStep('generate', 'Synthesizing response...', '✨');
+                
+                setTimeout(() => {
+                    updateStep(generateStep, 'Response generated', '✅', 'var(--primary)');
+                    
+                    const sourcesContainer = finalResponse.querySelector('.sources-container');
+                    sources.forEach((src, index) => {
+                        const href = (src.url && src.url !== '#') ? `href="${src.url}" target="_blank"` : '';
+                        sourcesContainer.innerHTML += `
+                            <a ${href} class="shrink-0 flex flex-col rounded-xl p-3 w-40 cursor-pointer transition-colors no-underline border hover:opacity-80" style="background-color: var(--bg-input); border-color: var(--border-color);">
+                                <div class="text-[10px] font-bold mb-1 uppercase tracking-wider" style="color: var(--text-muted);">Source ${index + 1}</div>
+                                <div class="text-sm font-medium leading-tight line-clamp-2" style="color: var(--text-main);">${src.title}</div>
+                            </a>
+                        `;
+                    });
+                    
+                    const answerHTML = data.answer.replace(/\n/g, '<br>');
+                    finalResponse.querySelector('.answer-text').innerHTML = answerHTML;
+                    
+                    reasoningBtn.classList.remove('hidden');
+                    finalResponse.classList.remove('hidden');
+                    setTimeout(() => finalResponse.classList.remove('opacity-0'), 50);
+                    chatContainer.scrollTop = chatContainer.scrollHeight;
+                }, 500);
+            }
+        });
+
+        eventSource.addEventListener("done", () => {
+            eventSource.close();
+            isGenerating = false;
+            setInputState(false);
+        });
+        eventSource.addEventListener("error", (e) => {
+            addStep(Date.now(), 'An error occurred.', '❌', '#ef4444');
+            eventSource.close();
+            isGenerating = false;
+            setInputState(false);
+        });
+    }
+
+    searchBtn.addEventListener('click', () => startSearch(input.value.trim()));
+    input.addEventListener('keydown', (e) => { 
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            startSearch(input.value.trim()); 
+        }
+    });
+    
+    followupBtn.addEventListener('click', () => startSearch(followupInput.value.trim()));
+    followupInput.addEventListener('keydown', (e) => { 
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            startSearch(followupInput.value.trim()); 
+        }
+    });
+
+  </script>
+</body>
+</html>

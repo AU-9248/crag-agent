@@ -1,0 +1,13 @@
+fastapi
+uvicorn
+langgraph
+langchain
+langchain-community
+langchain-ollama
+langchain-tavily
+sqlalchemy
+faiss-cpu
+pypdf
+python-dotenv
+sse-starlette
+pydantic
